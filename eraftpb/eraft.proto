@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package eraftpb;
+
+// EntryType 条目类型
+enum EntryType {
+    EntryNormal = 0;
+    EntryConfChange = 1;
+}
+
+// Entry 条目
+// 1. entry_type 类型
+// 2. term 选举轮次
+// 3. index 提案idx(id)
+// 4. data 数据
+message Entry {
+    EntryType entry_type = 1;
+    uint64 term = 2;
+    uint64 index = 3;
+    bytes data = 4;
+}
+
+// HardState 节点状态 当前 term, commit index, vote record
+message HardState {
+    uint64 term = 1;
+    uint64 vote = 2;
+    uint64 commit = 3;
+}
+
+// ConfState
+// 1. nodes 包含当前raft的所有节点
+message ConfState {
+    // all node id
+    repeated uint64 nodes = 1;
+}
+
+enum ConfChangeType {
+    AddNode    = 0;
+    RemoveNode = 1;
+}
+
+// ConfChange is the data that attach on entry with EntryConfChange type
+// TODO
+message ConfChange {
+    ConfChangeType change_type = 1;
+    // node will be add/remove
+    uint64 node_id = 2;
+    bytes context = 3;
+}
+
+// SnapshotMetadata 
+// 1. conf_state
+// 2. index 日志index
+// 3. term 最后一个应用于快照的log
+message SnapshotMetadata {
+    ConfState conf_state = 1;
+    uint64 index = 2;
+    uint64 term = 3;
+}
+
+message Snapshot {
+    bytes data = 1;
+    SnapshotMetadata metadata = 2;
+}
+
+// MessageType 同样需要Setp方法处理的本地信息
+enum MessageType {
+    // 选举超时 指示本节点进入选举
+    MsgHup = 0;
+    // 成为 Leader 指示本节点向followers发送 MsgHeartbeat
+    MsgBeat = 1;
+    // 提议向 Leader 的日志条目中添加信息
+    MsgPropose = 2;
+    // 包含要复制的日志条目
+    MsgAppend = 3;
+    // 回应append
+    MsgAppendResponse = 4;
+    // 请求选举投票
+    MsgRequestVote = 5;
+    // 回应选举投票
+    MsgRequestVoteResponse = 6;
+    // TODO 请求安装快照消息
+    MsgSnapshot = 7;
+    // Leader 向 followers 发送的心跳
+    MsgHeartbeat = 8;
+    // 心跳回应
+    MsgHeartbeatResponse = 9;
+    // TODO 要求 目标Leader 下台
+    MsgTransferLeader = 11;
+    // Leader 向别的目标Leader发送此消息要求对方立即下台
+    MsgTimeoutNow = 12;
+}
+
+message Message {
+    MessageType msg_type = 1;
+    uint64 to = 2;
+    uint64 from = 3;
+    uint64 term = 4;
+    uint64 log_term = 5;
+    uint64 index = 6;
+    repeated Entry entries = 7;
+    uint64 commit = 8;
+    Snapshot snapshot = 9;
+    bool reject = 10;
+}
