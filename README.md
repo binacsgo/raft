@@ -178,3 +178,28 @@ zeroTermOnRangeErr
 
 ## 3. raft
 
+> 前面是 config 及其校验 validate
+
+原有结构：
+
+```
+// --------- 在文件内被调用的函数 ---------
+sendAppend
+sendHeartbeat
+tick
+becomeFollower
+becomeCandidate
+becomeLeader
+
+handleAppendEntries
+handleHeartbeat
+handleSnapshot
+
+// --------- 在本包内被调用的函数 ---------
+Step                rawnode.go
+addNode             rawnode.go
+removeNode          rawnode.go
+```
+
+
+

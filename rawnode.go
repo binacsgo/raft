@@ -52,7 +52,7 @@ func NewRawNode(config *Config) (*RawNode, error) {
 
 // Tick advances the internal logical clock by a single tick.
 func (rn *RawNode) Tick() {
-	rn.Raft.tick()
+	rn.Raft.Tick()
 }
 
 // Campaign 驱动节点至 candidate state.
@@ -92,9 +92,9 @@ func (rn *RawNode) ApplyConfChange(cc *pb.ConfChange) *pb.ConfState {
 	}
 	switch cc.ChangeType {
 	case pb.ConfChangeType_AddNode:
-		rn.Raft.addNode(cc.NodeId)
+		rn.Raft.AddNode(cc.NodeId)
 	case pb.ConfChangeType_RemoveNode:
-		rn.Raft.removeNode(cc.NodeId)
+		rn.Raft.RemoveNode(cc.NodeId)
 	default:
 		panic("unexpected conf type")
 	}

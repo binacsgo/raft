@@ -115,6 +115,17 @@ func zeroTermOnRangeErr(term uint64, err error) uint64 {
 	return 0
 }
 
+// 获取有多少配置日志
+func numOfPendingConf(ents []pb.Entry) int {
+	n := 0
+	for i := range ents {
+		if ents[i].EntryType == pb.EntryType_EntryConfChange {
+			n++
+		}
+	}
+	return n
+}
+
 // uint64Slice 定义切片方便比较排序
 type uint64Slice []uint64
 
