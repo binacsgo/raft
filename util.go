@@ -12,6 +12,11 @@ import (
 	pb "github.com/binacsgo/raft/eraftpb"
 )
 
+func panicf(format string, a ...interface{}) {
+	inf := fmt.Sprintf(format, a...)
+	panic(inf)
+}
+
 func min(a, b uint64) uint64 {
 	if a > b {
 		return b
@@ -88,13 +93,26 @@ func diffu(a, b string) string {
 	return string(buf)
 }
 
-func ltoa(l *RaftLog) string {
+func ltoa(l *Log) string {
 	s := fmt.Sprintf("committed: %d\n", l.committed)
 	s += fmt.Sprintf("applied:  %d\n", l.applied)
 	for i, e := range l.entries {
 		s += fmt.Sprintf("#%d: %+v\n", i, e)
 	}
 	return s
+}
+
+// 代码真是太丑了...
+// 这个不需要是成员方法啊。。。甚至写个条件判断优雅一些就可以了。。。
+func zeroTermOnRangeErr(term uint64, err error) uint64 {
+	if err == nil {
+		return term
+	}
+	if err == errCompacted || err == errUnavailable {
+		return 0
+	}
+	panicf("unexpected error (%v)", err)
+	return 0
 }
 
 // uint64Slice 定义切片方便比较排序

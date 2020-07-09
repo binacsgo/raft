@@ -1,20 +1,11 @@
 package raft
 
 import (
-	"errors"
-	"fmt"
 	"sync"
 
 	//"github.com/binacsgo/log"
 
 	pb "github.com/binacsgo/raft/eraftpb"
-)
-
-var (
-	errCompacted                      = errors.New("requested index is unavailable due to compaction")
-	errSnapOutOfDate                  = errors.New("requested index is older than the existing snapshot")
-	errUnavailable                    = errors.New("requested entry at index is unavailable")
-	errSnapshotTemporarilyUnavailable = errors.New("snapshot is temporarily unavailable")
 )
 
 // Storage interface: retrieve log entries from storage.
@@ -79,8 +70,7 @@ func (ms *MemoryStorage) Entries(lo, hi uint64) ([]pb.Entry, error) {
 		return nil, errCompacted
 	}
 	if hi > ms.lastIndex()+1 {
-		inf := fmt.Sprintf("entries' hi(%d) is out of bound lastindex(%d)", hi, ms.lastIndex())
-		panic(inf)
+		panicf("entries' hi(%d) is out of bound lastindex(%d)", hi, ms.lastIndex())
 	}
 
 	ents := ms.ents[lo-offset : hi-offset]
@@ -165,8 +155,7 @@ func (ms *MemoryStorage) CreateSnapshot(i uint64, cs *pb.ConfState, data []byte)
 
 	offset := ms.ents[0].Index
 	if i > ms.lastIndex() {
-		inf := fmt.Sprintf("snapshot %d is out of bound lastindex(%d)", i, ms.lastIndex())
-		panic(inf)
+		panicf("snapshot %d is out of bound lastindex(%d)", i, ms.lastIndex())
 	}
 
 	ms.snapshot.Metadata.Index = i
@@ -189,8 +178,7 @@ func (ms *MemoryStorage) Compact(compactIndex uint64) error {
 		return errCompacted
 	}
 	if compactIndex > ms.lastIndex() {
-		inf := fmt.Sprintf("compact %d is out of bound lastindex(%d)", compactIndex, ms.lastIndex())
-		panic(inf)
+		panicf("compact %d is out of bound lastindex(%d)", compactIndex, ms.lastIndex())
 	}
 
 	i := compactIndex - offset
@@ -233,8 +221,7 @@ func (ms *MemoryStorage) Append(entries []pb.Entry) error {
 	case uint64(len(ms.ents)) == offset:
 		ms.ents = append(ms.ents, entries...)
 	default:
-		inf := fmt.Sprintf("missing log entry [last: %d, append at: %d]", ms.lastIndex(), entries[0].Index)
-		panic(inf)
+		panicf("missing log entry [last: %d, append at: %d]", ms.lastIndex(), entries[0].Index)
 	}
 	return nil
 }

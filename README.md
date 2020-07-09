@@ -87,4 +87,76 @@ type RaftLog struct {
 
 
 
-### 2.2 方法实现
+### 2.2 实现
+
+原共有以下函数：
+
+```go
+// term
+Term(i uint64) (uint64, error)
+// append
+matchTerm(idx, term uint64) bool
+zeroTermOnRangeErr(term uint64, err error) uint64
+findConflict(ents []pb.Entry) uint64
+truncateAppend(ents []pb.Entry)
+append(ents []pb.Entry) uint64
+tryCompact()
+tryAppend(index, logTerm, committed uint64, ents []pb.Entry) (newlast uint64, ok bool)
+// snapshot
+snapshot() (pb.Snapshot, error)
+restore(s pb.Snapshot)
+// nextEnts
+firstIndex() uint64
+lastIndex() uint64
+mustCheckOutOfBounds(lo, hi uint64) error
+slice(lo, hi uint64) ([]pb.Entry, error)
+nextEntsSince(since uint64)
+nextEnts() (ents []pb.Entry)
+hasNextEntsSince(since uint64) bool
+hasNextEnts() bool
+// upToDate
+lastTerm() uint64
+isUpToDate(lasti, term uint64) bool
+// entries
+unstableEntries() []pb.Entry
+allEntries() []pb.Entry
+Entries(i uint64) ([]pb.Entry, error)
+// to interface
+commitTo(tocommit uint64)
+appliedTo(i uint64)
+stableTo(idx, term uint64)
+stableSnapTo(i uint64)
+maybeCommit(maxIndex, term uint64) bool
+
+// --------- 在本包内被调用的函数 ---------
+newLog							显然... raft.go
+Term								文件内 以及 raft.go			
+matchTerm						文件内 以及 raft.go			大写 修改返回值：idx对应的term和比较bool
+zeroTermOnRangeErr	文件内 以及 raft.go			改成非成员方法放在util
+findConflict				文件内	
+truncateAppend			文件内
+tryCompact					文件内
+append							文件内 以及 raft.go
+tryAppend						文件内 以及 raft.go
+snapshot						文件内 以及 raft.go
+restore							文件内 以及 raft.go
+firstIndex					文件内 以及 raft.go
+lastIndex						文件内 以及 raft.go 以及app层的 peer.go
+mustCheckOutOfBounds	文件内
+slice								文件内 以及 raft.go
+nextEntsSince				文件内
+nextEnts						文件内 以及 rawnode.go
+hasNextEntsSince		文件内
+hasNextEnts					文件内 以及 rawnode.go
+lastTerm						文件内 以及 raft.go
+isUpToDate					文件内 以及 raft.go
+unstableEntries			文件内 以及 rawnode.go
+allEntries					文件内 以及 rawnode.go 以及 util
+Entries							只看到 raft.go
+commitTo						raft.go
+maybeCommit					raft.go
+appliedTo						raft.go	rawnode.go
+stableTo						rawnode.go
+stableSnapTo				rawnode.go
+```
+

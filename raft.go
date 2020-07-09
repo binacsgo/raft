@@ -1,8 +1,6 @@
 package raft
 
 import (
-	"errors"
-
 	pb "github.com/binacsgo/raft/eraftpb"
 )
 
@@ -31,10 +29,6 @@ func (st StateType) String() string {
 	return stmap[uint64(st)]
 }
 
-// ErrProposalDropped is returned when the proposal is ignored by some cases,
-// so that the proposer can be notified and fail fast.
-var ErrProposalDropped = errors.New("raft proposal dropped")
-
 // Config of raft
 type Config struct {
 	ID    uint64 // cannot be 0.
@@ -49,16 +43,16 @@ type Config struct {
 
 func (c *Config) validate() error {
 	if c.ID == None {
-		return errors.New("cannot use none as id")
+		return errConfigValidateIDisNone
 	}
 	if c.HeartbeatTick <= 0 {
-		return errors.New("heartbeat tick must be greater than 0")
+		return errConfigValidateHeartbeatTick
 	}
 	if c.ElectionTick <= c.HeartbeatTick {
-		return errors.New("election tick must be greater than heartbeat tick")
+		return errConfigValidateElectionTick
 	}
 	if c.Storage == nil {
-		return errors.New("storage cannot be nil")
+		return errConfigValidateStorageNil
 	}
 	return nil
 }
@@ -75,7 +69,7 @@ type Raft struct {
 	Term uint64
 	Vote uint64
 
-	RaftLog *RaftLog
+	RaftLog *Log
 
 	Prs map[uint64]*Progress
 

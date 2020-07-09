@@ -1,16 +1,9 @@
 package raft
 
 import (
-	"errors"
-
 	"github.com/golang/protobuf/proto"
 
 	pb "github.com/binacsgo/raft/eraftpb"
-)
-
-var (
-	errStepLocalMsg     = errors.New("raft: cannot step raft local message")
-	errStepPeerNotFound = errors.New("raft: cannot step as peer not found")
 )
 
 // SoftState provides state that is useful for logging and debugging.
