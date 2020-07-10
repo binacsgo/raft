@@ -20,6 +20,11 @@ Raft core implement.
 # rawnode
 ```
 
+<!--Tools:go get -u github.com/ofabry/go-callvis
+brew install graphviz-->
+
+整个包的接口都是 rawnode 的方法
+
 
 
 ## 1. storage
@@ -178,28 +183,108 @@ zeroTermOnRangeErr
 
 ## 3. raft
 
-> 前面是 config 及其校验 validate
+### 3.1 定义
 
-原有结构：
+> 前面是
+>
+> 1. config 及其校验 validate
+> 2. 全局随机数生成器
+> 3. 对于 Leader 保存从节点进度的 Progress
+
+重构结构：
 
 ```
 // --------- 在文件内被调用的函数 ---------
-sendAppend
-sendHeartbeat
-tick
-becomeFollower
-becomeCandidate
-becomeLeader
+send                消息加入msgs
+sendTimeoutNow      发送timeoutNow 在stepLeader中使用
+sendAppend          发送附带日志的消息 根据从log里能否拿到日志决定发送快照还是日志段
+sendHeartbeat       发送心跳
+bcastAppend         广播 向所有节点sendAppend 
+bcastHeartbeat      广播心跳
+tryCommit           校验日志是否可以提交 复制到过半的节点就可以提交 调用log的TryCommit
+appendEntry         
 
-handleAppendEntries
-handleHeartbeat
-handleSnapshot
+tickElection        选举超时后follower和candidate会执行
+tickHeartbeat       心跳超时后leader发送心跳MsgBeat
+            
+becomeFollower      更新节点状态
+becomeCandidate     
+becomeLeader        更新节点状态 称为leader会出发appendEntry 但传入空ent
+
+campaign            竞选 -成功会成为-这里直接成为候选人candidate状态 如果投票足够变leader 发起投票请求
+
+handleAppendEntries 处理追加日志appendEntries
+handleHeartbeat     处理心跳 更新raftLog中的Commit并发送心跳应答
+handleSnapshot      
+
+stepLeader
+stepCandidate
+stepFollower
+
+... 一些小的工具类函数
 
 // --------- 在本包内被调用的函数 ---------
 Step                rawnode.go
-addNode             rawnode.go
-removeNode          rawnode.go
+GetSnap             
+SoftState           
+HardState           
+GetProgress         
+Tick                
+AddNode             rawnode.go
+RemoveNode          rawnode.go
+
+```
+
+### 3.2 状态机
+
+回顾之前定义的消息：
+
+```go
+const (
+	// 选举超时 指示本节点进入选举
+	MessageType_MsgHup MessageType = 0
+	// 成为 Leader 指示本节点向followers发送 MsgHeartbeat
+	MessageType_MsgBeat MessageType = 1
+	// 提议向 Leader 的日志条目中添加信息
+	MessageType_MsgPropose MessageType = 2
+	// 包含要复制的日志条目
+	MessageType_MsgAppend MessageType = 3
+	// 回应append
+	MessageType_MsgAppendResponse MessageType = 4
+	// 请求选举投票
+	MessageType_MsgRequestVote MessageType = 5
+	// 回应选举投票
+	MessageType_MsgRequestVoteResponse MessageType = 6
+	// TODO 请求安装快照消息
+	MessageType_MsgSnapshot MessageType = 7
+	// Leader 向 followers 发送的心跳
+	MessageType_MsgHeartbeat MessageType = 8
+	// 心跳回应
+	MessageType_MsgHeartbeatResponse MessageType = 9
+	// TODO 要求 目标Leader 下台
+	MessageType_MsgTransferLeader MessageType = 11
+	// Leader 向别的目标Leader发送此消息要求对方立即下台
+	MessageType_MsgTimeoutNow MessageType = 12
+)
 ```
 
 
+
+## 4. rawnode
+
+```go
+Tick
+Campaign
+Propose
+ProposeConfChange
+ApplyConfChange
+Step
+GetSnap
+Ready
+HasReady
+Advance
+GetProgress
+TransferLeader
+
+```
 

@@ -280,8 +280,9 @@ func (r *Raft) RemoveNode(id uint64) {
 
 // ---------------------------- used by raft itself ----------------------------
 func (r *Raft) quorum() int                        { return len(r.Prs)/2 + 1 }
-func (r *Raft) setProgress(id, match, next uint64) { r.Prs[id] = &Progress{Next: next, Match: match} }
 func (r *Raft) abortLeaderTransfer()               { r.leadTransferee = None }
+func (r *Raft) pastElectionTimeout() bool          { return r.electionElapsed >= r.randomizedElectionTimeout }
+func (r *Raft) setProgress(id, match, next uint64) { r.Prs[id] = &Progress{Next: next, Match: match} }
 func (r *Raft) forEachProgress(f func(id uint64, pr *Progress)) {
 	for id, pr := range r.Prs {
 		f(id, pr)
@@ -301,11 +302,9 @@ func (r *Raft) reset(term uint64) {
 		r.Vote = None
 	}
 	r.Lead = None
-
 	r.electionElapsed = 0
 	r.heartbeatElapsed = 0
 	r.resetRandomizedElectionTimeout()
-
 	r.abortLeaderTransfer()
 
 	r.votes = make(map[uint64]bool)
@@ -319,17 +318,15 @@ func (r *Raft) reset(term uint64) {
 	r.PendingConfIndex = 0
 }
 
-// pastElectionTimeout used in tickElection
-func (r *Raft) pastElectionTimeout() bool { return r.electionElapsed >= r.randomizedElectionTimeout }
-
 // campaign | stepCandidate
 func (r *Raft) poll(id uint64, t pb.MessageType, v bool) (granted int) {
-	// poll ?
+	// 投票 v为true投赞成 v为false投反对
 	if v {
 		log.Printf("%d received %s from %d at term %d\n", r.id, t, id, r.Term)
 	} else {
 		log.Printf("%d received %s rejection from %d at term %d\n", r.id, t, id, r.Term)
 	}
+	// 记录投票 返回有效票总数
 	if _, ok := r.votes[id]; !ok {
 		r.votes[id] = v
 	}
@@ -561,6 +558,7 @@ func (r *Raft) campaign() {
 		r.becomeLeader()
 		return
 	}
+	// 向集群发起投票请求
 	for id := range r.Prs {
 		if id == r.id {
 			continue
@@ -709,7 +707,6 @@ func (r *Raft) stepLeader(m pb.Message) error {
 			}
 		} else {
 			if pr.maybeUpdate(m.Index) {
-
 				if r.tryCommit() {
 					r.bcastAppend()
 				}
@@ -826,6 +823,9 @@ func (r *Raft) stepFollower(m pb.Message) error {
 // ---------------------------- handle ----------------------------
 
 func (r *Raft) handleAppendEntries(m pb.Message) {
+	// m.Index表示leader发送给follower的上一条日志的索引位置
+	// 如果当前follower在该位置的日志已经提交过了(有可能该leader是刚选举产生的 没有follower的日志信息故设置m.Index=0 这里就拿到0)
+	// 则把follower当前提日志交的索引位置告诉leader 让leader从该follower提交位置的下一条位置的日志开始发送给follower
 	if m.Index < r.raftLog.committed {
 		r.send(pb.Message{To: m.From, MsgType: pb.MessageType_MsgAppendResponse, Index: r.raftLog.committed})
 		return
@@ -835,9 +835,13 @@ func (r *Raft) handleAppendEntries(m pb.Message) {
 	for _, ent := range m.Entries {
 		ents = append(ents, *ent)
 	}
+	// 将日志追加到follower的日志中 此时可能存在冲突(raftLog内部解决)
 	if mlastIndex, ok := r.raftLog.TryAppend(m.Index, m.LogTerm, m.Commit, ents); ok {
+		// 追加成功 返回最新idx
 		r.send(pb.Message{To: m.From, MsgType: pb.MessageType_MsgAppendResponse, Index: mlastIndex})
 	} else {
+		// leader与follower的日志没有匹配 那么把follower的最新日志的索引位置告诉leader
+		// 以便leader下一次从该follower的最新日志位置之后开始尝试发送附加日志
 		log.Printf("%d [logterm: %d, index: %d] rejected MessageType_MsgAppend [logterm: %d, index: %d] from %d",
 			r.id, zeroTermOnRangeErr(r.raftLog.Term(m.Index)), m.Index, m.LogTerm, m.Index, m.From)
 		r.send(pb.Message{To: m.From, MsgType: pb.MessageType_MsgAppendResponse, Index: m.Index, Reject: true, RejectHint: r.raftLog.LastIndex()})
