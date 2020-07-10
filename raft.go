@@ -485,7 +485,7 @@ func (r *Raft) appendEntry(es ...pb.Entry) {
 		es[i].Index = li + 1 + uint64(i)
 	}
 	// use latest "last" index after truncate/append
-	li = r.raftLog.Append(es)
+	li = r.raftLog.Append(es...)
 	r.GetProgress(r.id).maybeUpdate(li)
 	// Regardless of maybeCommit's return, our caller will call bcastAppend.
 	r.tryCommit()
@@ -836,7 +836,7 @@ func (r *Raft) handleAppendEntries(m pb.Message) {
 		ents = append(ents, *ent)
 	}
 	// 将日志追加到follower的日志中 此时可能存在冲突(raftLog内部解决)
-	if mlastIndex, ok := r.raftLog.TryAppend(m.Index, m.LogTerm, m.Commit, ents); ok {
+	if mlastIndex, ok := r.raftLog.TryAppend(m.Index, m.LogTerm, m.Commit, ents...); ok {
 		// 追加成功 返回最新idx
 		r.send(pb.Message{To: m.From, MsgType: pb.MessageType_MsgAppendResponse, Index: mlastIndex})
 	} else {

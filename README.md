@@ -27,6 +27,18 @@ brew install graphviz-->
 
 
 
+**Unit Test**
+
+```shell
+go test -v -coverprofile cover.out
+go tool cover -html=cover.out -o cover.html 
+
+# paper_test
+go test -v raft_paper_test.go error.go storage.go util.go raft.go rawnode.go log.go raft_test.go
+```
+
+
+
 ## 1. storage
 
 存储接口
@@ -268,6 +280,39 @@ const (
 )
 ```
 
+**在 Step 中收到消息 m**
+
+1. 校验 m.Term 对于 m.Term > r.Term 的情况（其他情况的处理不影响本节点状态转移故此处略去）：
+
+   若消息类型为 `append`  `heartbeat`  `snapshot`  则执行 becomeFollower( , from)
+
+   否则执行 becomeFollower( , None)
+
+2. 校验 m.Type
+
+   hup：如果不是 leader 则参与竞选；否则已是 leader 保持不动
+
+   vote：投赞成 or 反对
+
+   其他：依据当前节点角色处理消息
+
+**对于非 hup/vote 的消息类型，节点依据不同角色执行以下流程**
+
+<!-- https://tableconvert.com -->
+
+| 消息 \ 角色         | Leader                         | Candidate | Follower |
+| :----------------: | :----------------------------: | :-------: | :------: |
+| Beat                | 广播心跳                       | -         | - |
+| Propose             | 广播日志                       | err | err |
+| Append              | -                              | 成为follower 随即handle日志 | handle日志 |
+| AppendResponse      | 拒绝==> Decr \| 接受==> Update | - | - |
+| Heartbeat           | -                              | 成为follower 随即handle心跳 | handle心跳 |
+| HeartbeatResponse   | send                           | - | - |
+| RequestVoteResponse | -                              | 处理投票 并判断是否能成为leader 再处理 | - |
+| Snapshot            | -                              | - | handle快照 |
+| TransferLeader      | 转移                           | - | 转移 |
+| TimeoutNow          | -                              | 忽略 | 判断 进入竞选 |
+
 
 
 ## 4. rawnode
@@ -285,6 +330,5 @@ HasReady
 Advance
 GetProgress
 TransferLeader
-
 ```
 

@@ -221,7 +221,7 @@ func (l *Log) tryCompact() {
 }
 
 // Append 直接追加
-func (l *Log) Append(ents []pb.Entry) uint64 {
+func (l *Log) Append(ents ...pb.Entry) uint64 {
 	if len(ents) == 0 {
 		return l.LastIndex()
 	}
@@ -236,8 +236,8 @@ func (l *Log) Append(ents []pb.Entry) uint64 {
 }
 
 // TryAppend 入参更多 场景：
-// ents在etcd的实现中 顶层使用的也是数组 这里直接改数组保持代码一致且无歧义
-func (l *Log) TryAppend(index, logTerm, committed uint64, ents []pb.Entry) (newlast uint64, ok bool) {
+// ents在etcd的实现中 顶层使用的也是数组 这里直接改数组保持代码一致且无歧义==> 改...方便压入单项
+func (l *Log) TryAppend(index, logTerm, committed uint64, ents ...pb.Entry) (newlast uint64, ok bool) {
 	// index logTerm为leader上次发送给该follower的日志索引和term
 	// committed 是可以提交的日志索引 只有follower能匹配这个才能响应
 	if l.MatchTerm(index, logTerm) {
@@ -251,7 +251,7 @@ func (l *Log) TryAppend(index, logTerm, committed uint64, ents []pb.Entry) (newl
 		default:
 			// 取出从冲突位置开始的日志 覆盖自己的日志
 			offset := index + 1
-			l.Append(ents[cfIdx-offset:])
+			l.Append(ents[cfIdx-offset:]...)
 		}
 		// 如果leader的committed日志大于leader复制给当前follower的最新日志索引 committed > newlast
 		// 说明follower落后 直接全部提交    否则提交leader已经提交的索引的日志 即committed

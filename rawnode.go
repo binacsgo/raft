@@ -160,7 +160,7 @@ func (rn *RawNode) GetSnap() *pb.Snapshot {
 
 // Ready returns the current point-in-time state of this RawNode.
 func (rn *RawNode) Ready() Ready {
-	rd := newReady{rn.Raft, rn.prevSoftSt, rn.prevHardSt}
+	rd := newReady(rn.Raft, rn.prevSoftSt, rn.prevHardSt)
 	rn.Raft.msgs = nil // attention
 	return rd
 }
@@ -193,14 +193,14 @@ func (rn *RawNode) Advance(rd Ready) {
 		rn.prevHardSt = rd.HardState
 	}
 	if rn.prevHardSt.Commit != 0 {
-		rn.Raft.RaftLog.AppliedTo(rn.prevHardSt.Commit)
+		rn.Raft.raftLog.AppliedTo(rn.prevHardSt.Commit)
 	}
 	if len(rd.Entries) > 0 {
 		e := rd.Entries[len(rd.Entries)-1]
-		rn.Raft.RaftLog.StableTo(e.Index, e.Term)
+		rn.Raft.raftLog.StableTo(e.Index, e.Term)
 	}
 	if !IsEmptySnap(&rd.Snapshot) {
-		rn.Raft.RaftLog.StableSnapTo(rd.Snapshot.Metadata.Index)
+		rn.Raft.raftLog.StableSnapTo(rd.Snapshot.Metadata.Index)
 	}
 }
 
